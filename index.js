@@ -7,7 +7,11 @@ const
   PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN,
   express = require('express'),
   bodyParser = require('body-parser'),
-  app = express().use(bodyParser.json());
+  app = express().use(bodyParser.json()),
+  postbackPayloads = {
+    comeIn: 1,
+    findOutMore: 2
+  }
   // creates express http server
 
 // Sets server port and logs message on success
@@ -21,29 +25,31 @@ app.post('/webhook', (req, res) => {
   // Checks this is an event from a page subscription
   if (body.object === 'page') {
 
- // Iterates over each entry - there may be multiple if batched
-body.entry.forEach(function(entry) {
+  // Iterates over each entry - there may be multiple if batched
+  body.entry.forEach(function(entry) {
 
-   	// Gets the message. entry.messaging is an array, but 
-   	// will only ever contain one message, so we get index 0
-   	let webhook_event = entry.messaging[0];
-   	console.log(webhook_event);
+    // Gets the message. entry.messaging is an array, but 
+    // will only ever contain one message, so we get index 0
+    let webhook_event = entry.messaging[0];
+    console.log(webhook_event);
 
-    	 // Get the sender PSID
-     	let sender_psid = webhook_event.sender.id;
-     	console.log('Sender PSID: ' + sender_psid);
+    // Get the sender PSID
+    let sender_psid = webhook_event.sender.id;
+    console.log('Sender PSID: ' + sender_psid);
 
-	// Check if the event is a message or postback and
-  	// pass the event to the appropriate handler function
-  	if (webhook_event.message) {
-           handleMessage(sender_psid, webhook_event.message);        
-  	} else if (webhook_event.postback) {
-          handlePostback(sender_psid, webhook_event.postback);
-        }
-     
-     
+    // Check if the event is a message or postback and
+    // pass the event to the appropriate handler function
+    if (webhook_event.get_started)
+      getStarted(sender_psid);
+    if (webhook_event.message) {
+      handleMessage(sender_psid, webhook_event.message);        
+    } else if (webhook_event.postback) {
+      handlePostback(sender_psid, webhook_event.postback);
+    } 
+      
+      
 
-});
+    });
 
     // Returns a '200 OK' response to all requests
     res.status(200).send('EVENT_RECEIVED');
@@ -64,7 +70,7 @@ app.get('/webhook', (req, res) => {
     
   // Parse the query params
   let mode = req.query['hub.mode'];
-  let token = req.query['hub.verify_token'];
+  let token = req.query['hub.verify_token']; 
   let challenge = req.query['hub.challenge'];
     
   // Checks if a token and mode is in the query string of the request
@@ -83,6 +89,34 @@ app.get('/webhook', (req, res) => {
     }
   }
 });
+
+async function getStarted(sender_psid){
+
+  const res = await fetch(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
+  const name = await res.json();
+  let response = {
+    "recipient":{
+      "id": sender_psid
+    },
+    "messaging_type": "RESPONSE",
+    "message":{
+      "text": `Hello, ${name}. How would you like us to help you today?`,
+      "quick_replies":[
+        {
+          "content_type":"text",
+          "title":"I'd Like to Come in",
+          "payload":postbackPayloads.comeIn,
+        },{
+          "content_type":"text",
+          "title":"I'd Like to know more about you're business",
+          "payload":postbackPayloads.findOutMore,
+        }
+      ]
+    }
+  }
+
+  callSendAPI(sender_psid, response);
+}
 
 // Handles messages events
 function handleMessage(sender_psid, received_message) {
