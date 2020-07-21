@@ -8,6 +8,7 @@ https://devpost.com/software/rewise-ai-powered-revision-bot)
 ## Inspiration
 Add your Team’s Inspiration for the Chatbot
 
+This was inspired by the recent pandemic that caused many industries to be disrupted.
 
 ## What it does
 Add a short description
