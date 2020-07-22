@@ -8,14 +8,49 @@ const
   express = require('express'),
   bodyParser = require('body-parser'),
   app = express().use(bodyParser.json()),
+  axios = require('axios'),
   postbackPayloads = {
-    comeIn: 1,
-    findOutMore: 2
+    comeIn: "1",
+    findOutMore: "2",
+    getStarted: "3"
+  },
+  quickReplyPayloads = {
+    comeInNow: "1",
+    comeInLater: "2"
   }
   // creates express http server
 
 // Sets server port and logs message on success
-app.listen(process.env.PORT || 1337, () => console.log('webhook is listening'));
+let listener = app.listen(process.env.PORT || 1337, () => console.log(`webhook is listening on port ${listener.address().port}`));
+
+async function setParams() {
+  let request_body = {
+    "greeting":[
+      {
+        "locale":"default",
+        "text":"Hello, {{user_first_name}}. Welcome to our page 😄"
+      }
+    ],
+    "get_started":{
+        "payload":postbackPayloads.getStarted
+    }
+ };
+
+  await request({
+    "uri": "https://graph.facebook.com/v7.0/me/messenger_profile",
+    "qs": { "access_token": process.env.PAGE_ACCESS_TOKEN },
+    "method": "POST",
+    "json": request_body
+  }, (err, res, body) => {
+    if (!err) {
+      console.log(res.statusCode);
+    } else {
+      console.error("Unable to send message:" + err);
+    }
+  }); 
+}
+
+setParams();
 
 // Creates the endpoint for our webhook 
 app.post('/webhook', (req, res) => {  
@@ -92,29 +127,56 @@ app.get('/webhook', (req, res) => {
 
 async function getStarted(sender_psid){
 
-  const res = await fetch(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
-  const name = await res.json();
-  let response = {
-    "recipient":{
-      "id": sender_psid
-    },
-    "messaging_type": "RESPONSE",
-    "message":{
-      "text": `Hello, ${name}. How would you like us to help you today?`,
-      "quick_replies":[
-        {
-          "content_type":"text",
-          "title":"I'd Like to Come in",
-          "payload":postbackPayloads.comeIn,
-        },{
-          "content_type":"text",
-          "title":"I'd Like to know more about you're business",
-          "payload":postbackPayloads.findOutMore,
-        }
-      ]
-    }
-  }
+  // await request({
+  //   "uri": "https://graph.facebook.com/v7.0/me/messenger_profile",
+  //   "qs": { "access_token": process.env.PAGE_ACCESS_TOKEN },
+  //   "method": "POST",
+  //   "json": request_body
+  // }, (err, res, body) => {
+  //   if (!err) {
+  //     console.log(res.statusCode);
+  //   } else {
+  //     console.error("Unable to send message:" + err);
+  //   }
+  // }); 
 
+  // const res = await fetch(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
+  // console.log(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
+
+  
+  // request({
+  //   "uri":`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`,
+  //   "qs": {
+  //     "access_token":process.env.PAGE_ACCESS_TOKEN,
+  //     "fields":"first_name"
+  //   },
+  //   "method":"GET"
+  // }, (err, res, body) => {
+  //   console.log(res)
+  // })
+
+  // const name = await res.json();
+
+
+  let response = {
+    "text":`How would you like us to help you today?`,
+    "quick_replies":[
+      {
+        "content_type":"text",
+        "title":"I'd Like to Come in now 🚶🏾‍♀️",
+        "payload":quickReplyPayloads.comeInNow
+      },{
+        "content_type":"text",
+        "title":"I'd Like to Come in later ⏱...🚶🏾‍♀️",
+        "payload":quickReplyPayloads.comeInLater,
+      },{
+        "content_type":"text",
+        "title":"I'd Like to know more about you're business",
+        "payload":postbackPayloads.findOutMore,
+      }
+    ]
+  }
+  //callSendAPI(sender_psid, message);
   callSendAPI(sender_psid, response);
 }
 
@@ -122,6 +184,37 @@ async function getStarted(sender_psid){
 function handleMessage(sender_psid, received_message) {
 
   let response;
+
+  if(received_message.quick_reply){
+    let payload=received_message.quick_reply.payload;
+    switch(payload){
+      case quickReplyPayloads.comeInNow:{
+        response = ( {"text": "Ok. Checking if now's a good time..."});
+        break;
+      }
+      case quickReplyPayloads.comeInLater:{
+        response = ({
+          "text":"Ok how would you like to do that?",
+          "quick_replies":[
+            {
+              "content_type":"text",
+              "title":"Tell me when I can get through quickly 🏃🏾‍♀️💨",
+              "payload":quickReplyPayloads.comeInNow
+            },{
+              "content_type":"text",
+              "title":"I wanna plan a time I can come in ⌚🤔",
+              "payload":quickReplyPayloads.comeInLater,
+            },{
+              "content_type":"text",
+              "title":"I'd Like to know more about you're business",
+              "payload":postbackPayloads.findOutMore,
+            }
+          ]
+        })
+        break;
+      }
+    }
+  }else
 
   // Check if the message contains text
   if (received_message.text) {    
@@ -197,11 +290,46 @@ function handleMessage(sender_psid, received_message) {
 function handlePostback(sender_psid, received_postback) {
   let response;
   
+  if(received_postback.quick_reply){
+    let payload=received_postback.quick_reply.payload;
+    switch(payload){
+      case quickReplyPayloads.comeInNow:{
+        response = ( {"text": "Ok. Checking if now's a good time"});
+      }
+      case quickReplyPayloads.comeInLater:{
+        response = ({
+          "text":"Ok how would you like to do that?",
+          "quick_replies":[
+            {
+              "content_type":"text",
+              "title":"Tell me when I can get through quickly 🏃🏾‍♀️💨",
+              "payload":quickReplyPayloads.comeInNow
+            },{
+              "content_type":"text",
+              "title":"I wanna plan a time I can come in ⌚🤔",
+              "payload":quickReplyPayloads.comeInLater,
+            },{
+              "content_type":"text",
+              "title":"I'd Like to know more about you're business",
+              "payload":postbackPayloads.findOutMore,
+            }
+          ]
+        })
+        return;
+      }
+    }
+  }
+
   // Get the payload for the postback
   let payload = received_postback.payload;
-
+  
   // Set the response based on the postback payload
+  if  (payload === postbackPayloads.getStarted){
+    getStarted(sender_psid);
+    return;
+  }
   if (payload === 'A') {
+
     response = { "text": "Okay you picked 'A' " }
   } else if (payload === 'B') {
     response = { "text": "Okay you pikced 'B' " }
