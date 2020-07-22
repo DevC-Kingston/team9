@@ -6,9 +6,8 @@ https://devpost.com/software/rewise-ai-powered-revision-bot)
 **Team Members**: Daniel Nelson, Ryhane Roberts, Romario Bennett, Claude Hewitt, Ryan Whyte
 
 ## Inspiration
-Add your Team’s Inspiration for the Chatbot
 
-This was inspired by the recent pandemic that caused many industries to be disrupted. The pandemic has made waiting in line more complex as they are restrictions on the ammount of people that are allowed in buildings at a time. Some individuals have to wait outside for another person to leave before they can enter.
+This was inspired by the recent pandemic that caused many industries to be disrupted. The pandemic has made waiting in line ans large gatherings more difficult, restricted and complex as they are restrictions on the ammount of people that are allowed in buildings at a time. Some individuals have to wait outside for another person to leave before they can enter.
 
 ## What it does
 The bot allows users to schedule the time they want to come in, figure out if the business is at capacity and also give the user a little information about the business.
@@ -47,8 +46,11 @@ Product Roadmap - next features for example
 
 
 ## Built With - provide the tech stack used 
-* example1
-* example2
+* Node.js
+* Javascript
+* JSON
+* Heroku
+* facebook-messenger
 
 
 ## Try it out
