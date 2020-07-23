@@ -185,7 +185,7 @@ async function getStarted(sender_psid){
       },{
         "content_type":"text",
         "title":"I'd Like to Come in later ⏱...🚶🏾‍♀️",
-        "payload":quickReplyPayloads.comeInLater,
+        "payload":quickReplyPayloads.low_activity_notification,
       },{
         "content_type":"text",
         "title":"I'd Like to know more about you're business",
