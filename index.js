@@ -1,5 +1,7 @@
 'use strict';
 
+const { query } = require('express');
+
 
 // Imports dependencies and set up http server
 const
@@ -8,7 +10,9 @@ const
   express = require('express'),
   bodyParser = require('body-parser'),
   app = express().use(bodyParser.json()),
-  axios = require('axios'),
+  got = require('got'),
+  Queue = require('queue-fifo'),
+  requestPromise = require('request-promise'),
   postbackPayloads = {
     comeIn: "1",
     findOutMore: "2",
@@ -16,12 +20,27 @@ const
   },
   quickReplyPayloads = {
     comeInNow: "1",
-    comeInLater: "2"
+    comeInLater: "2",
+    low_activity_notification: "3",
+    main:"4",
+    all_for_now:"5"
   }
   // creates express http server
 
+
 // Sets server port and logs message on success
-let listener = app.listen(process.env.PORT || 1337, () => console.log(`webhook is listening on port ${listener.address().port}`));
+let 
+  listener = app.listen(process.env.PORT || 1337, () => console.log(`webhook is listening on port ${listener.address().port}`)),
+  businessState = {
+    maxCapacity: 20,
+    currentCapacity: 21,
+    queues: {
+      personalBanking: new Queue(),
+      customerService: new Queue(),
+      loans: new Queue()
+    }
+  },
+  businessCapacityUpdateQueue = new Queue();
 
 async function setParams() {
   let request_body = {
@@ -66,11 +85,11 @@ app.post('/webhook', (req, res) => {
     // Gets the message. entry.messaging is an array, but 
     // will only ever contain one message, so we get index 0
     let webhook_event = entry.messaging[0];
-    console.log(webhook_event);
+    //console.log(webhook_event);
 
     // Get the sender PSID
     let sender_psid = webhook_event.sender.id;
-    console.log('Sender PSID: ' + sender_psid);
+    //  console.log('Sender PSID: ' + sender_psid);
 
     // Check if the event is a message or postback and
     // pass the event to the appropriate handler function
@@ -95,10 +114,39 @@ app.post('/webhook', (req, res) => {
 
 });
 
+app.get('/capacity', (req, res, next) =>{
+  res.status(200).json({
+    customers_at_location: businessState.currentCapacity
+  })
+})
+
+app.post('/capacity', (req, res, next) => {
+  if(req.body.action === 'increase_capacity'){
+    businessState.currentCapacity++;
+    res.status(200).json({currentCapacity:businessState.currentCapacity});
+  } else if(req.body.action === 'decrease_capacity'){
+    if(businessState.currentCapacity===10){
+      for(let i = 0; i < 10; i++){
+        let sender_psid = businessCapacityUpdateQueue.dequeue();
+        let response = {
+          "text":"Just letting you know, there is a lull in business right now so you'd most likely get through quickly if you come in now 😄"
+        }
+        callSendAPI(sender_psid, response)
+      }
+    }
+    if(businessState.currentCapacity <= 0){
+      res.status(200).json({message:"Capacity at 0"});
+    } else{
+      businessState.currentCapacity--;
+      res.status(200).json({currentCapacity:businessState.currentCapacity});
+    }
+  }
+});
+
 //Adds support for GET requests to our webhook
 app.get('/webhook', (req, res) => {
 
- 
+
 
   // Your verify token. Should be a random string.
   const VERIFY_TOKEN = "test";
@@ -126,38 +174,7 @@ app.get('/webhook', (req, res) => {
 });
 
 async function getStarted(sender_psid){
-
-  // await request({
-  //   "uri": "https://graph.facebook.com/v7.0/me/messenger_profile",
-  //   "qs": { "access_token": process.env.PAGE_ACCESS_TOKEN },
-  //   "method": "POST",
-  //   "json": request_body
-  // }, (err, res, body) => {
-  //   if (!err) {
-  //     console.log(res.statusCode);
-  //   } else {
-  //     console.error("Unable to send message:" + err);
-  //   }
-  // }); 
-
-  // const res = await fetch(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
-  // console.log(`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`);
-
-  
-  // request({
-  //   "uri":`https://graph.facebook.com/${sender_psid}?fields=first_name&access_token=${process.env.PAGE_ACCESS_TOKEN}`,
-  //   "qs": {
-  //     "access_token":process.env.PAGE_ACCESS_TOKEN,
-  //     "fields":"first_name"
-  //   },
-  //   "method":"GET"
-  // }, (err, res, body) => {
-  //   console.log(res)
-  // })
-
-  // const name = await res.json();
-
-
+  console.log("\"Get Started\" triggered");
   let response = {
     "text":`How would you like us to help you today?`,
     "quick_replies":[
@@ -182,17 +199,19 @@ async function getStarted(sender_psid){
 
 // Handles messages events
 function handleMessage(sender_psid, received_message) {
-
+  console.log("Handle Message called");
   let response;
 
   if(received_message.quick_reply){
     let payload=received_message.quick_reply.payload;
     switch(payload){
       case quickReplyPayloads.comeInNow:{
-        response = ( {"text": "Ok. Checking if now's a good time..."});
-        break;
+        console.log("\"Come In Now \" quick reply selected");
+        handlePostback(sender_psid, received_message);
+        return;
       }
       case quickReplyPayloads.comeInLater:{
+        console.log("come in later selected")
         response = ({
           "text":"Ok how would you like to do that?",
           "quick_replies":[
@@ -212,6 +231,13 @@ function handleMessage(sender_psid, received_message) {
           ]
         })
         break;
+      }
+      case quickReplyPayloads.low_activity_notification:{
+        handlePostback(sender_psid, received_message);
+        return;
+      }case quickReplyPayloads.all_for_now:{
+        handlePostback(sender_psid, received_message);
+        return;
       }
     }
   }else
@@ -287,14 +313,36 @@ function handleMessage(sender_psid, received_message) {
 
 
 // Handles messaging_postbacks events
-function handlePostback(sender_psid, received_postback) {
+async function handlePostback(sender_psid, received_postback) {
   let response;
   
   if(received_postback.quick_reply){
     let payload=received_postback.quick_reply.payload;
     switch(payload){
       case quickReplyPayloads.comeInNow:{
-        response = ( {"text": "Ok. Checking if now's a good time"});
+        response = ( {"text": "Ok. Checking if now's a good time..."});
+        callSendAPI(sender_psid, response).then(()=>{
+          if(businessState.currentCapacity >= businessState.maxCapacity){
+            callSendAPI(sender_psid, {"text": "This location is full currently."}).then(()=>{
+              callSendAPI(sender_psid, {"text": "We recommend comming in later if you aren't willing to wait for a better experience."}).then(()=>{
+                callSendAPI(sender_psid, 
+                  {"text": "Would you like to be notified when there is less activity?",
+                  "quick_replies":[{
+                    "content_type":"text",
+                    "title":"Yes",
+                    "payload":quickReplyPayloads.low_activity_notification
+                  },{
+                    "content_type":"text",
+                    "title":"No",
+                    "payload":quickReplyPayloads.main
+                  }]
+                 });
+              })
+            })
+          }else{
+            callSendAPI(sender_psid, {"text": "It's ok to come in now. You should get through relatively quickly 😊"});
+          }
+        })
       }
       case quickReplyPayloads.comeInLater:{
         response = ({
@@ -302,7 +350,7 @@ function handlePostback(sender_psid, received_postback) {
           "quick_replies":[
             {
               "content_type":"text",
-              "title":"Tell me when I can get through quickly 🏃🏾‍♀️💨",
+              "title":"Can I get through?",
               "payload":quickReplyPayloads.comeInNow
             },{
               "content_type":"text",
@@ -315,6 +363,37 @@ function handlePostback(sender_psid, received_postback) {
             }
           ]
         })
+        return;
+      }
+      case quickReplyPayloads.low_activity_notification: {
+        response = {
+          "text":"Ok Well let you know when it'd be a good time to come in"
+        }
+        businessCapacityUpdateQueue.enqueue(sender_psid);
+
+        callSendAPI(sender_psid, response).then(()=>{
+          response = {
+            "text":"Will that be all for now?",
+            "quick_replies":[
+              {
+                "content_type":"text",
+                "title":"Yes",
+                "payload":quickReplyPayloads.all_for_now,
+              },{
+                "content_type":"text",
+                "title":"No",
+                "payload":"no",
+              },
+            ]
+          }
+          callSendAPI(sender_psid, response);
+        });
+        return;
+      }case quickReplyPayloads.all_for_now:{
+        response = {
+          "text":"Alright. Thanks for making it River Bank 😄"
+        }
+        callSendAPI(sender_psid, response);
         return;
       }
     }
@@ -342,7 +421,7 @@ function handlePostback(sender_psid, received_postback) {
 
 
 // Sends response messages via the Send API
-function callSendAPI(sender_psid, response) {
+async function callSendAPI(sender_psid, response) {
 // Construct the message body
   let request_body = {
     "recipient": {
@@ -352,7 +431,7 @@ function callSendAPI(sender_psid, response) {
   }
 
 		// Send the HTTP request to the Messenger Platform
-  request({
+  await requestPromise({
     "uri": "https://graph.facebook.com/v2.6/me/messages",
     "qs": { "access_token": process.env.PAGE_ACCESS_TOKEN },
     "method": "POST",
@@ -364,7 +443,18 @@ function callSendAPI(sender_psid, response) {
       console.error("Unable to send message:" + err);
     }
   }); 
-  
+  const searchParams = new URLSearchParams([['query', process.env.PAGE_ACCESS_TOKEN]])
+
+  // const {body} = await got.post(`https://graph.facebook.com/v2.6/me/messages?access_token=${process.env.PAGE_ACCESS_TOKEN}`, {
+  //   json: {
+  //     hello: 'world'
+  //   },
+  //   responseType: 'json'
+  // }).catch((error) => {
+  //   console.error(error);
+  // })
+
+  // console.log(body);
 }
 
 
