@@ -30,8 +30,7 @@ Tech Stack & Documentation:
  
  
 ## Accomplishments that we're proud of
-* Accomplishment 1
-* Accomplishment 2
+We are proud that we implemented an application that allow persons to carry out their business in a time efficient manner.
 
 
 ## What we learned
