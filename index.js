@@ -1,5 +1,8 @@
 'use strict';
 
+import viewEngine from "./config/viewEngine";
+import initWebRoutes from "./routes/web";
+
 
 // Imports dependencies and set up http server
 const
@@ -18,6 +21,12 @@ const
     comeInNow: "1",
     comeInLater: "2"
   }
+
+  // config view engine
+  viewEngine(app);
+
+//initializes web route
+initWebRoutes(app);
   // creates express http server
 
 // Sets server port and logs message on success
