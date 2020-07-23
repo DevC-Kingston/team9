@@ -43,8 +43,8 @@ Facebook-Messenger API
 
 ## What's next for “Insert Your Bot Name”
 Product Roadmap - next features for example
-1. Feature 1
-1. Feature 2
+1. Expansion
+1. Further iterations
 
 
 ## Built With - provide the tech stack used 
