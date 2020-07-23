@@ -20,9 +20,19 @@
         <button onclick="decrease(this)">Decrease</button>
     </div>
     <script>
-        let currentCapacity = document.getElementById("current_capacity");
+        const 
+            DEV_URL = "http://localhost:3000/capacity", 
+            PROD_URL = "/capacity";
 
-        fetch("http://localhost:3000/capacity")
+        let currentCapacity = document.getElementById("current_capacity"), url;
+
+
+        if (window.location.href.indexOf("localhost") > -1) {
+            url = DEV_URL
+        }else
+            url = PROD_URL;
+        
+        fetch(url)
             .then(response => response.json())
             .then((body)=>{
                 currentCapacity.value = body.customers_at_location;
@@ -30,7 +40,7 @@
 
         function increase(button){
             button.disabled = true;
-            fetch("http://localhost:3000/capacity", {
+            fetch(url, {
                 method:'POST',
                 mode: 'cors',
                 headers: {
@@ -48,7 +58,7 @@
         }
 
         function decrease(button){
-            fetch("http://localhost:3000/capacity", {
+            fetch(url, {
                 method:'POST',
                 mode: 'cors',
                 headers: {
