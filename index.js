@@ -7,6 +7,7 @@ const { query } = require('express');
 const
   request = require('request'),
   PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN,
+  QRcode = require('qrcode'),
   express = require('express'),
   bodyParser = require('body-parser'),
   app = express().use(bodyParser.json()),
@@ -114,6 +115,14 @@ app.post('/webhook', (req, res) => {
 
 });
 
+
+app.get('/queue-qrcode', (req, res, next) => {
+  let qr = new QRcode("123456789", {
+    errorCorrectionLevel: "H"
+  });
+  qr.toFileStream.pipe(res);
+});
+
 app.get('/capacity', (req, res, next) =>{
   res.status(200).json({
     customers_at_location: businessState.currentCapacity
@@ -182,15 +191,15 @@ async function getStarted(sender_psid){
     "quick_replies":[
       {
         "content_type":"text",
-        "title":"I'd Like to Come in now 🚶🏾‍♀️",
+        "title":"Can I Come in now 🚶🏾‍♀️",
         "payload":quickReplyPayloads.comeInNow
       },{
         "content_type":"text",
-        "title":"I'd Like to Come in later ⏱...🚶🏾‍♀️",
+        "title":"I'm coming in later ⌚",
         "payload":quickReplyPayloads.low_activity_notification,
       },{
         "content_type":"text",
-        "title":"I'd Like to know more about you're business",
+        "title":"About you're business",
         "payload":postbackPayloads.findOutMore,
       }
     ]

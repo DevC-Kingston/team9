@@ -17,6 +17,7 @@
     "express": "^4.17.1",
     "got": "^11.5.1",
     "node-request-queue": "^1.0.2",
+    "qrcode": "^1.4.4",
     "queue-fifo": "^0.2.6",
     "request": "^2.88.2",
     "request-promise": "^4.2.6"
