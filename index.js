@@ -70,7 +70,7 @@ async function setParams() {
 }
 
 setParams();
-
+app.use(express.static('public'));
 // Creates the endpoint for our webhook 
 app.post('/webhook', (req, res) => {  
  
@@ -172,6 +172,8 @@ app.get('/webhook', (req, res) => {
     }
   }
 });
+
+
 
 async function getStarted(sender_psid){
   console.log("\"Get Started\" triggered");

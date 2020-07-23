@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+    <style>
+        #current_capacity{
+            width: 8em;
+        }
+        .view{
+            margin: auto 0;
+        }
+        .center{
+            margin: auto auto;
+            text-align: center;
+        }
+    </style>
+    <div class="view">
+        <label class="center" for="current_capacity">Number of Persons in the Business</label>
+        <input id="current_capacity" readonly>
+    </div>
+    <div class="view">
+        <button onclick="increase(this)">Increase</button>
+        <button onclick="decrease(this)">Decrease</button>
+    </div>
+    <script>
+        let currentCapacity = document.getElementById("current_capacity");
+
+        fetch("http://localhost:3000/capacity")
+            .then(response => response.json())
+            .then((body)=>{
+                currentCapacity.value = body.customers_at_location;
+            });
+
+        function increase(button){
+            button.disabled = true;
+            fetch("http://localhost:3000/capacity", {
+                method:'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body:JSON.stringify({
+                    "action":"increase_capacity"
+                })
+            }).then((response)=>response.json()).then((body)=>{
+                currentCapacity.value = body.currentCapacity;
+                button.disabled = false;
+            }).catch((error)=>{
+                currentCapacity.value = `Error: ${error}`;
+            })
+        }
+
+        function decrease(button){
+            fetch("http://localhost:3000/capacity", {
+                method:'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body:JSON.stringify({
+                    "action":"decrease_capacity"
+                })
+            }).then((response)=>response.json()).then((body)=>{
+                currentCapacity.value = body.currentCapacity;
+                button.disabled = false;
+            }).catch((error)=>{
+                currentCapacity.value = `Error: ${error}`;
+            })
+        }
+    </script>
+</html>
