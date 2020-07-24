@@ -208,12 +208,39 @@ async function getStarted(sender_psid){
   callSendAPI(sender_psid, response);
 }
 
+function firstTrait(nlp, name) {
+  return nlp && nlp.entities && nlp.traits[name] && nlp.traits[name][0];
+}
 // Handles messages events
-function handleMessage(sender_psid, received_message) {
+async function handleMessage(sender_psid, received_message) {
   console.log("Handle Message called");
   let response;
 
-  if(received_message.quick_reply){
+  const greeting = firstTrait(received_message.nlp, 'wit$greetings');
+
+  if(greeting){
+    await callSendAPI(sender_psid, {"text":"Hello 😀"});
+    response = {
+      "text":`What do you need?`,
+      "quick_replies":[
+        {
+          "content_type":"text",
+          "title":"Can I Come in now 🚶🏾‍♀️",
+          "payload":quickReplyPayloads.comeInNow
+        },{
+          "content_type":"text",
+          "title":"I'm coming in later ⌚",
+          "payload":quickReplyPayloads.low_activity_notification,
+        },{
+          "content_type":"text",
+          "title":"About you're business",
+          "payload":postbackPayloads.findOutMore,
+        }
+      ]
+    }
+    await callSendAPI(sender_psid, response);
+    return;
+  }else if(received_message.quick_reply){
     let payload=received_message.quick_reply.payload;
     switch(payload){
       case quickReplyPayloads.comeInNow:{
